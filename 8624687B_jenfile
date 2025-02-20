@@ -1,84 +1,75 @@
 pipeline {
     agent any
-
     stages {
         stage('8624687B-opr-s1') {
             steps {
-                script {
-                    echo "Stage 1: Creating backup image for UAT web server..."
-                    sh 'docker commit 8624687B_uatsvr 8624687B_uatsvr_backup'
-                    echo "Updating UAT web server..."
-                    sh 'bolt command run "echo Updated index.html" --targets uat'
-                }
+                echo "Stage 1: Creating backup image for UAT web server..."
+                sh 'docker commit 8624687B_uatsvr uat_backup_image'
+                echo "Updating UAT web server..."
+                sh 'bolt command run "echo Updated index.html" --targets uat'
             }
         }
-
+        
         stage('8624687B-opr-s2') {
             steps {
+                echo "Stage 2: Checking if UAT web server is running..."
                 script {
-                    echo "Stage 2: Checking if UAT web server is running..."
-                    def status = sh(script: 'curl -s --head http://localhost:32500 | head -n 1', returnStatus: true)
+                    def status = sh(script: 'curl -s http://localhost:32500', returnStatus: true)
                     if (status == 0) {
                         echo "8624687B_OP_S2: UAT server is running"
                     } else {
                         echo "8624687B_OP_S2: UAT server fails"
-                        error("UAT Server is down. Stopping pipeline.")
+                        error("UAT server is down. Stopping pipeline.")
                     }
                 }
             }
         }
-
+        
         stage('8624687B-opr-s3') {
             steps {
-                script {
-                    echo "Stage 3: Proceeding with stress test..."
-                    sh 'echo "Stress test running on UAT..."'
-                }
+                echo "Stage 3: Proceeding with stress test..."
+                sh 'echo "Stress test running on UAT..."'
             }
         }
-
+        
         stage('8624687B-opr-s4') {
             steps {
-                script {
-                    echo "Stage 4: Checking stress test result..."
-                    sh 'echo "Stress test result is good"'
-                }
+                echo "Stage 4: Assuming stress test result is good"
             }
         }
-
+        
         stage('8624687B-opr-s5') {
             steps {
-                script {
-                    echo "Stage 5: Deploying update to production web server..."
-                    sh 'echo "Deploy update to production server"'
-                }
+                echo "Stage 5: Deploy new update to production web server?"
+                input message: "Proceed to update production web server or Abort?"
             }
         }
-
+        
         stage('8624687B-opr-s6') {
             steps {
-                script {
-                    echo "Stage 6: Creating backup image for production web server..."
-                    sh 'docker commit 8624687B_prodsvr 8624687B_prodsvr_backup'
-                    echo "Updating production web server..."
-                    sh 'bolt command run "echo Updated index.html" --targets prod'
-                }
+                echo "Stage 6: Creating backup image for production web server..."
+                sh 'docker commit 8624687B_prodsvr prod_backup_image'
+                echo "Updating Production web server..."
+                sh 'bolt command run "echo Updated index.html" --targets prod'
             }
         }
-
+        
         stage('8624687B-opr-s7') {
             steps {
+                echo "Stage 7: Checking if Production server is running..."
                 script {
-                    echo "Stage 7: Checking if production web server is running..."
-                    def status = sh(script: 'curl -s --head http://localhost:32600 | head -n 1', returnStatus: true)
+                    def status = sh(script: 'curl -s http://localhost:32600', returnStatus: true)
                     if (status == 0) {
                         echo "8624687B_OP_S7: Production website is operational"
                     } else {
-                        echo "8624687B_OP_S7: Production website is down, choosing rollback or troubleshooting"
-                        def userChoice = input message: "Production site down. Choose next step:", parameters: [
-                            choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'], description: 'Choose action')
-                        ]
-                        if (userChoice == 'Trigger roll back') {
+                        echo "Prompting user for action..."
+                        def userChoice = input(
+                            message: "Production site failed. Choose action:",
+                            parameters: [
+                                choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'], description: 'Select recovery action')
+                            ]
+                        )
+                        if (userChoice == "Trigger roll back") {
                             echo "8624687B_OP_S7: Production website is rolling back"
                         } else {
                             echo "8624687B_OP_S7: Troubleshooting of Production website is in progress"
