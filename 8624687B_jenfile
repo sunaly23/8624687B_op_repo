@@ -1,1 +1,84 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('8624687B-opr-s1') {
+            steps {
+                echo "Stage 1: Creating backup image for uat web server..."
+                sh 'docker commit 8624687B_uatsvr uatsvr_image'
+                echo "Updating uat web server..."
+                sh 'bolt command run "echo Updated index.html" --targets uat'
+            }
+        }
+
+        stage('8624687B-opr-s2') {
+            steps {
+                echo "Stage 2: Checking if UAT web server is running..."
+                script {
+                    def status = sh(script: 'curl -s http://localhost:32500', returnStatus: true)
+                    if (status == 0) {
+                        echo "8624687B_OP_S2: uat svr is running"
+                    } else {
+                        echo "8624687B_OP_S2: uat svr fails"
+                        error("UAT Server is down. Stopping pipeline.")
+                    }
+                }
+            }
+        }
+
+        stage('8624687B-opr-s3') {
+            steps {
+                echo "Stage 3: Proceeding with stress test..."
+                // Simulate stress test
+                sh 'echo "Stress test running on UAT..."'
+            }
+        }
+
+        stage('8624687B-opr-s4') {
+            steps {
+                echo "Stage 4: Stress test result is good."
+            }
+        }
+
+        stage('8624687B-opr-s5') {
+            steps {
+                echo "Stage 5: Deploy update to production server..."
+                script {
+                    def proceed = input message: "Proceed to update production server?", parameters: [booleanParam(defaultValue: true, description: '', name: 'Proceed')]
+                    if (!proceed) {
+                        error("Production update aborted.")
+                    }
+                }
+            }
+        }
+
+        stage('8624687B-opr-s6') {
+            steps {
+                echo "Stage 6: Creating backup image for prod server..."
+                sh 'docker commit 8624687B_prodsvr prodsvr_image'
+                echo "Updating prod web server..."
+                sh 'bolt command run "echo Updated prod index.html" --targets prod'
+            }
+        }
+
+        stage('8624687B-opr-s7') {
+            steps {
+                echo "Stage 7: Checking production server..."
+                script {
+                    def status = sh(script: 'curl -s http://localhost:32600', returnStatus: true)
+                    if (status == 0) {
+                        echo "8624687B_OP_S7: Production website is operational"
+                    } else {
+                        def choice = input message: "Production server issue. Choose an action:", parameters: [choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'], description: 'Choose action')]
+                        if (choice == 'Trigger roll back') {
+                            echo "8624687B_OP_S7: Production website is rolling back"
+                        } else {
+                            echo "8624687B_OP_S7: Troubleshooting of Production website is in progress"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
