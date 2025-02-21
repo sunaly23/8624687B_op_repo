@@ -1,38 +1,17 @@
+cat <<EOF > 8624687B_script
 #!/bin/bash
+# Ensure apache2 is installed and running
+apt update && apt install -y apache2
+systemctl restart apache2
 
-set -e
+# Remove and recreate the research directory
+rm -rf /tmp/8624687B/research
+mkdir -p /tmp/8624687B/research
 
-echo "======================================"
-echo "Executing Puppet Bolt Script on Target Containers"
-echo "======================================"
+# Clone the repo and replace index.html
+git clone https://github.com/sunaly23/8624687B_op_repo.git /tmp/8624687B/research
+cp /tmp/8624687B/research/8624687B_index.html /var/www/html/index.html
 
-TARGETS=("8624687B_uatsvr" "8624687B_prodsvr")
-
-for TARGET in "${TARGETS[@]}"; do
-    echo "Processing container: $TARGET"
-
-    # Ensure Apache2 is installed
-    docker exec -it $TARGET apt update && docker exec -it $TARGET apt install -y apache2
-
-    # Start Apache service if not running
-    docker exec -it $TARGET systemctl enable apache2
-    docker exec -it $TARGET systemctl start apache2
-
-    # Clean up the research directory
-    docker exec -it $TARGET rm -rf /tmp/8624687B/research
-    docker exec -it $TARGET mkdir -p /tmp/8624687B/research
-
-    # Clone GitHub repository
-    docker exec -it $TARGET git clone https://github.com/sunaly23/8624687B_op_repo.git /tmp/8624687B/research
-
-    # Copy new index.html file (Ensure this file exists in GitHub)
-    docker exec -it $TARGET cp /tmp/8624687B/research/8624687B_index.html /var/www/html/index.html
-
-    # Restart Apache service to apply changes
-    docker exec -it $TARGET systemctl restart apache2
-
-    echo "Completed processing for: $TARGET"
-    echo "======================================"
-done
-
-echo "✅ Puppet Bolt Script Execution Completed"
+echo "Apache2 is updated with the new index.html file."
+EOF
+chmod +x 8624687B_script
