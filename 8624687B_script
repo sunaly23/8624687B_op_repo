@@ -1,32 +1,19 @@
 #!/bin/bash
 
-# Variables
-CONTAINER=$1   # Accept container name as an argument
-REPO_DIR="/tmp/8624687B/research"
-GIT_REPO="https://github.com/sunaly23/8624687B_op_repo.git"
-HTML_SRC="/tmp/8624687B_op_repo/8624687B_index.html"
-HTML_DST="/var/www/html/index.html"
-
-echo "Starting Bolt script execution on $CONTAINER..."
-
 # Ensure Apache2 is installed and running
-echo "Ensuring Apache2 is installed..."
-docker exec -it $CONTAINER bash -c "apt update && apt install -y apache2 && systemctl start apache2 && systemctl enable apache2"
+puppet resource package apache2 ensure=installed
+puppet resource service apache2 ensure=running enable=true
 
-# Remove old research directory
-echo "Cleaning up old research directory..."
-docker exec -it $CONTAINER bash -c "rm -rf $REPO_DIR && mkdir -p $REPO_DIR"
+# Remove and recreate /tmp/8624687B/research directory
+rm -rf /tmp/8624687B/research
+mkdir -p /tmp/8624687B/research
 
-# Clone the latest repository into the container
-echo "Cloning the repository into $CONTAINER..."
-docker exec -it $CONTAINER bash -c "git clone $GIT_REPO $REPO_DIR"
+# Clone the repository into the directory
+git clone https://github.com/sunaly23/8624687B_op_repo.git /tmp/8624687B/research
 
-# Replace the index.html with the latest file
-echo "Updating index.html..."
-docker exec -it $CONTAINER bash -c "cp $HTML_SRC $HTML_DST"
+# Replace index.html with the updated version
+cp /tmp/8624687B/research/8624687B_index.html /var/www/html/index.html
 
-# Restart Apache to apply changes
-echo "Restarting Apache2..."
-docker exec -it $CONTAINER bash -c "systemctl restart apache2"
-
-echo "Script execution completed for $CONTAINER!"
+# Restart Apache2 to apply changes
+systemctl restart apache2
+echo "Update completed successfully."
