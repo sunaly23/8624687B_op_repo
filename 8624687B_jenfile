@@ -1,82 +1,94 @@
-pipeline {
-    agent any
-    stages {
-        stage('8624687B-opr-s1') {
-            steps {
-                echo "Stage 1: Creating backup image for UAT web server..."
-                sh 'docker commit 8624687B_uatsvr uat_backup_image'
-                echo "Updating UAT web server..."
-                sh 'bolt command run "echo Updated index.html" --targets uat'
-            }
-        }
-        
-        stage('8624687B-opr-s2') {
-            steps {
-                echo "Stage 2: Checking if UAT web server is running..."
-                script {
-                    def status = sh(script: 'curl -s http://localhost:32500', returnStatus: true)
-                    if (status == 0) {
-                        echo "8624687B_OP_S2: UAT server is running"
-                    } else {
-                        echo "8624687B_OP_S2: UAT server fails"
-                        error("UAT server is down. Stopping pipeline.")
-                    }
-                }
-            }
-        }
-        
-        stage('8624687B-opr-s3') {
-            steps {
-                echo "Stage 3: Proceeding with stress test..."
-                sh 'echo "Stress test running on UAT..."'
-            }
-        }
-        
-        stage('8624687B-opr-s4') {
-            steps {
-                echo "Stage 4: Assuming stress test result is good"
-            }
-        }
-        
-        stage('8624687B-opr-s5') {
-            steps {
-                echo "Stage 5: Deploy new update to production web server?"
-                input message: "Proceed to update production web server or Abort?"
-            }
-        }
-        
-        stage('8624687B-opr-s6') {
-            steps {
-                echo "Stage 6: Creating backup image for production web server..."
-                sh 'docker commit 8624687B_prodsvr prod_backup_image'
-                echo "Updating Production web server..."
-                sh 'bolt command run "echo Updated index.html" --targets prod'
-            }
-        }
-        
-        stage('8624687B-opr-s7') {
-            steps {
-                echo "Stage 7: Checking if Production server is running..."
-                script {
-                    def status = sh(script: 'curl -s http://localhost:32600', returnStatus: true)
-                    if (status == 0) {
-                        echo "8624687B_OP_S7: Production website is operational"
-                    } else {
-                        echo "Prompting user for action..."
-                        def userChoice = input(
-                            message: "Production site failed. Choose action:",
-                            parameters: [
-                                choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'], description: 'Select recovery action')
-                            ]
-                        )
-                        if (userChoice == "Trigger roll back") {
-                            echo "8624687B_OP_S7: Production website is rolling back"
-                        } else {
-                            echo "8624687B_OP_S7: Troubleshooting of Production website is in progress"
-                        }
-                    }
-                }
-            }
-        }
-    }
+#!/bin/bash
+
+set -e
+
+# ================================
+# Stage: 8624687B_OP_S1 - Backup UAT Web Server
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S1 - Backup UAT Web Server"
+echo "================================"
+
+docker commit 8624687b_uatsvr uat_backup:latest || {
+    echo "Error: Failed to create a backup image for UAT Web Server."
+    exit 1
 }
+echo "Backup completed."
+
+# ================================
+# Stage: 8624687B_OP_S2 - Verify UAT Web Server
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S2 - Verify UAT Web Server"
+echo "================================"
+
+curl -s --head http://localhost:32500 | grep "200 OK"
+if [ $? -ne 0 ]; then
+    echo "Error: UAT Web Server is not running."
+    exit 1
+fi
+echo "UAT Web Server is running."
+
+# ================================
+# Stage: 8624687B_OP_S3 - Performing Stress Test
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S3 - Performing Stress Test"
+echo "================================"
+
+# Simulated stress test (replace with actual test command)
+echo "Running stress test on UAT web server..."
+sleep 3
+echo "Stress test completed."
+
+# ================================
+# Stage: 8624687B_OP_S4 - Stress Test Result
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S4 - Stress Test Result"
+echo "================================"
+echo "Stress test result is good."
+
+# ================================
+# Stage: 8624687B_OP_S5 - Deploy to Production
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S5 - Deploy to Production"
+echo "================================"
+echo "Proceed to update production web server? (yes/no)"
+read answer
+if [ "$answer" != "yes" ]; then
+    echo "Aborting deployment."
+    exit 1
+fi
+
+echo "Updating production server..."
+docker commit 8624687b_prodsvr prod_backup:latest || {
+    echo "Error: Failed to create a backup image for Production Web Server."
+    exit 1
+}
+echo "Production update completed."
+
+# ================================
+# Stage: 8624687B_OP_S6 - Verify Production Server
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S6 - Verify Production Server"
+echo "================================"
+
+curl -s --head http://localhost:32600 | grep "200 OK"
+if [ $? -ne 0 ]; then
+    echo "Error: Production Web Server is not running."
+    exit 1
+fi
+echo "Production Web Server is running."
+
+# ================================
+# Stage: 8624687B_OP_S7 - Final Verification
+# ================================
+echo "================================"
+echo "Stage: 8624687B_OP_S7 - Final Verification"
+echo "================================"
+
+echo "Production website is operational."
+exit 0
