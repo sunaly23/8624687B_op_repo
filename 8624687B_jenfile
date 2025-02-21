@@ -1,73 +1,56 @@
 pipeline {
     agent any
+
     stages {
-        stage('8624687B-OPR-S1: Backup UAT Web Server') {
+        stage('8624687B_OP_S1') {
             steps {
-                sh '''
-                echo "Backing up UAT Web Server..."
-                docker commit 8624687B_uatsvr uat_backup:latest
-                echo "Backup completed."
-                '''
+                echo 'Backing up UAT Web Server'
+                sh './8624687B_script backup'
             }
         }
-        stage('8624687B-OPR-S2: Verify UAT Web Server') {
+
+        stage('8624687B_OP_S2') {
             steps {
-                sh '''
-                echo "Verifying UAT Web Server..."
-                curl -s --head http://localhost:32500 | grep "200 OK"
-                if [ $? -ne 0 ]; then
-                    echo "Error: UAT Web Server is not running."
-                    exit 1
-                fi
-                echo "UAT Web Server is running."
-                '''
+                echo 'Verifying UAT Web Server'
+                sh 'curl -I http://localhost:32500 | grep "200 OK"'
             }
         }
-        stage('8624687B-OPR-S3: Perform Stress Test') {
+
+        stage('8624687B_OP_S3') {
             steps {
-                sh '''
-                echo "Performing stress test on UAT Web Server..."
-                sleep 3
-                echo "Stress test completed."
-                '''
+                echo 'Performing Stress Test'
+                sh './8624687B_script stress_test'
             }
         }
-        stage('8624687B-OPR-S4: Stress Test Result') {
+
+        stage('8624687B_OP_S4') {
             steps {
-                sh '''
-                echo "Stress test result is good."
-                '''
+                echo 'Checking Stress Test Results'
+                sh 'echo "Stress Test Completed"'
             }
         }
-        stage('8624687B-OPR-S5: Deploy to Production') {
+
+        stage('8624687B_OP_S5') {
             steps {
-                input message: "Proceed to update production web server?", ok: "Yes"
-                sh '''
-                echo "Updating production server..."
-                docker commit 8624687B_prodsvr prod_backup:latest
-                echo "Production update completed."
-                '''
+                echo 'Deploying to Production'
+                sh './8624687B_script deploy'
             }
         }
-        stage('8624687B-OPR-S6: Verify Production Server') {
+
+        stage('8624687B_OP_S6') {
             steps {
-                sh '''
-                echo "Verifying Production Web Server..."
-                curl -s --head http://localhost:32600 | grep "200 OK"
-                if [ $? -ne 0 ]; then
-                    echo "Error: Production Web Server is not running."
-                    exit 1
-                fi
-                echo "Production Web Server is running."
-                '''
+                echo 'Verifying Production Server'
+                sh 'curl -I http://localhost:32600 | grep "200 OK"'
             }
         }
-        stage('8624687B-OPR-S7: Final Verification') {
-            steps {
-                sh '''
-                echo "Final verification: Production website is operational."
-                '''
-            }
+    }
+
+    post {
+        success {
+            echo 'Pipeline executed successfully'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs.'
         }
     }
 }
